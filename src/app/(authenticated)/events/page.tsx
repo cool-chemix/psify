@@ -1,5 +1,13 @@
 'use client'
 
+import { useUserContext } from '@/core/context'
+import { Api } from '@/core/trpc'
+import { PageLayout } from '@/designSystem'
+import {
+  CalendarOutlined,
+  DollarOutlined,
+  PlusOutlined
+} from '@ant-design/icons'
 import {
   Button,
   Card,
@@ -12,21 +20,11 @@ import {
   Table,
   Typography,
 } from 'antd'
-import {
-  CalendarOutlined,
-  DollarOutlined,
-  PlusOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
+import dayjs from 'dayjs'
+import { useParams, useRouter } from 'next/navigation'
+import { useSnackbar } from 'notistack'
 import { useState } from 'react'
 const { Title, Text } = Typography
-import { useUserContext } from '@/core/context'
-import { useRouter, useParams } from 'next/navigation'
-import { useUploadPublic } from '@/core/hooks/upload'
-import { useSnackbar } from 'notistack'
-import dayjs from 'dayjs'
-import { Api } from '@/core/trpc'
-import { PageLayout } from '@/designSystem'
 
 export default function EventsPage() {
   const router = useRouter()
@@ -36,7 +34,6 @@ export default function EventsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [form] = Form.useForm()
 
-  // Fetch events with organizer information
   const { data: events, refetch } = Api.event.findMany.useQuery({
     include: {
       organizer: true,
@@ -48,10 +45,7 @@ export default function EventsPage() {
     },
   })
 
-  // Create event mutation
   const { mutateAsync: createEvent } = Api.event.create.useMutation()
-
-  // Event registration mutations
   const { mutateAsync: createRegistration } = Api.eventRegistration.create.useMutation()
   const { mutateAsync: deleteRegistration } = Api.eventRegistration.delete.useMutation()
 
@@ -95,12 +89,21 @@ export default function EventsPage() {
 
   const handleUnregister = async (eventId: string) => {
     try {
+      // First find the registration that matches both eventId and userId
+      const registration = events?.find(event => event.id === eventId)
+        ?.eventRegistrations?.find(reg => reg.userId === user?.id)
+  
+      if (!registration?.id) {
+        throw new Error('Registration not found')
+      }
+  
+      // Delete using the unique ID
       await deleteRegistration({
-        data: {
-          eventId,
-          userId: user?.id,
-        },
+        where: {
+          id: registration.id
+        }
       })
+      
       enqueueSnackbar('Successfully unregistered from event!', { variant: 'success' })
       refetch()
     } catch (error) {

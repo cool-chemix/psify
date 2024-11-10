@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import { ClientLayout } from './client.layout'
 
 export const metadata: Metadata = {
-  title: 'PsiPay',
-  description: 'PsiPay',
+  title: 'PsiFy',
+  description: 'PsiFy',
 }
 
 export default function RootLayout(props) {

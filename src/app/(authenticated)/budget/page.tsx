@@ -3,32 +3,23 @@
 import { useUserContext } from '@/core/context'
 import { Api } from '@/core/trpc'
 import { PageLayout } from '@/designSystem'
-import {
-  CheckOutlined,
-  CloseOutlined,
-  DollarOutlined,
-  InboxOutlined
-} from '@ant-design/icons'
-import {
-  Button,
-  Card,
-  Col,
-  Empty,
-  Row,
-  Spin,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-  Upload
-} from 'antd'
+import { CheckOutlined, CloseOutlined, DollarOutlined, InboxOutlined } from '@ant-design/icons'
+import { Button, Card, Col, Row, Spin, Statistic, Table, Tag, Typography, Upload } from 'antd'
 import type { UploadFile } from 'antd/es/upload/interface'
-import axios from 'axios'
 import dayjs from 'dayjs'
 import { useRouter } from 'next/navigation'
 import { useSnackbar } from 'notistack'
 import { useState } from 'react'
+import * as XLSX from 'xlsx'
+import DuesBreakdown from './DuesBreakdown'
+import MembershipDistribution from './MembershipDistribution'
+
 const { Title, Text } = Typography
+
+interface ParsedData {
+  dues: Array<{ label: string; amount: number }>;
+  membership: Array<{ type: string; count: number }>;
+}
 
 export default function BudgetDashboardPage() {
   const router = useRouter()
@@ -37,74 +28,89 @@ export default function BudgetDashboardPage() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [isLoadingGraphs, setIsLoadingGraphs] = useState(false)
   const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [graphs, setGraphs] = useState<{
-    membership_pie?: string
-    dues_bar?: string
-  }>({})
+  const [parsedData, setParsedData] = useState<ParsedData>({ dues: [], membership: [] })
+
   const isTreasurer = user?.globalRole === 'TREASURER'
 
-  // Fetch expense requests
-  const { data: expenseRequests, refetch: refetchExpenses } =
-    Api.expenseRequest.findMany.useQuery({
-      include: { user: true },
-      orderBy: { createdAt: 'desc' },
-    })
+  const { data: expenseRequests, refetch: refetchExpenses } = Api.expenseRequest.findMany.useQuery({
+    include: { user: true },
+    orderBy: { createdAt: 'desc' },
+  })
 
-  // Fetch transactions for financial overview
   const { data: transactions } = Api.transaction.findMany.useQuery({
     orderBy: { createdAt: 'desc' },
   })
 
-  // Calculate financial metrics
-  const totalIncome =
-    transactions?.reduce(
-      (acc, curr) =>
-        curr.type === 'INCOME' ? acc + parseFloat(curr.amount || '0') : acc,
-      0,
-    ) || 0
+  const totalIncome = transactions?.reduce(
+    (acc, curr) => (curr.type === 'INCOME' ? acc + parseFloat(curr.amount || '0') : acc),
+    0,
+  ) || 0
 
-  const totalExpenses =
-    transactions?.reduce(
-      (acc, curr) =>
-        curr.type === 'EXPENSE' ? acc + parseFloat(curr.amount || '0') : acc,
-      0,
-    ) || 0
+  const totalExpenses = transactions?.reduce(
+    (acc, curr) => (curr.type === 'EXPENSE' ? acc + parseFloat(curr.amount || '0') : acc),
+    0,
+  ) || 0
 
   const balance = totalIncome - totalExpenses
 
   const handleUpload = async (file: File) => {
     setIsLoadingGraphs(true)
-    const formData = new FormData()
-    formData.append('file', file)
-  
     try {
-      console.log('Uploading file:', file.name) // Debug log
-      const response = await axios.post('http://localhost:5000/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-        // Add timeout and response type
-        timeout: 30000,
-        responseType: 'json'
-      })
-      
-      if (response.data.graphs) {
-        setGraphs(response.data.graphs)
-        enqueueSnackbar('File uploaded successfully', { variant: 'success' })
-      } else {
-        throw new Error('No graphs data received')
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        
+        // Parse Sheet1
+        const sheet1 = workbook.Sheets['Sheet1']
+        const sheet1Data = XLSX.utils.sheet_to_json(sheet1, { header: 'A' })
+        
+        // Process dues data
+        const duesData = []
+        for (let i = 0; i < sheet1Data.length; i++) {
+          const row = sheet1Data[i] as any
+          if (row.A && row.B && row.A !== 'Total' && !row.A.includes('Total')) {
+            duesData.push({
+              label: row.A,
+              amount: parseFloat(row.B) || 0
+            })
+          }
+        }
+
+        // Process membership data
+        const membershipData = []
+        let membershipStarted = false
+        for (let i = 0; i < sheet1Data.length; i++) {
+          const row = sheet1Data[i] as any
+          if (row.K === 'Membership Breakdown') {
+            membershipStarted = true
+            continue
+          }
+          if (membershipStarted && row.K && row.L) {
+            membershipData.push({
+              type: row.K,
+              count: parseInt(row.L) || 0
+            })
+          }
+        }
+
+        setParsedData({
+          dues: duesData,
+          membership: membershipData
+        })
+        console.log(membershipData)
+        enqueueSnackbar('File processed successfully', { variant: 'success' })
       }
+      reader.readAsArrayBuffer(file)
     } catch (error) {
-      console.error('Upload error:', error) // Debug log
-      enqueueSnackbar(error.response?.data?.error || 'Failed to upload file', { variant: 'error' })
+      console.error('Upload error:', error)
+      enqueueSnackbar('Failed to process file', { variant: 'error' })
     } finally {
       setIsLoadingGraphs(false)
     }
   }
 
-  // Approve/Reject expense request
-  const { mutateAsync: updateExpenseRequest } =
-    Api.expenseRequest.update.useMutation()
+  const { mutateAsync: updateExpenseRequest } = Api.expenseRequest.update.useMutation()
 
   const handleExpenseAction = async (id: string, status: string) => {
     try {
@@ -116,12 +122,17 @@ export default function BudgetDashboardPage() {
         },
       })
       await refetchExpenses()
-      enqueueSnackbar(`Expense request ${status.toLowerCase()}`, {
-        variant: 'success',
-      })
+      enqueueSnackbar(`Expense request ${status.toLowerCase()}`, { variant: 'success' })
     } catch (error) {
       enqueueSnackbar('Failed to process request', { variant: 'error' })
     }
+  }
+
+  function findData(key: string){
+    for(let i = 0; i < parsedData.dues.length; i++) {
+      if(parsedData.dues[i].label === key) return parsedData.dues[i].amount;
+    }
+    
   }
 
   const expenseColumns = [
@@ -151,8 +162,8 @@ export default function BudgetDashboardPage() {
             status === 'APPROVED'
               ? 'green'
               : status === 'REJECTED'
-                ? 'red'
-                : 'gold'
+              ? 'red'
+              : 'gold'
           }
         >
           {status}
@@ -194,6 +205,8 @@ export default function BudgetDashboardPage() {
     },
   ]
 
+  
+
   return (
     <PageLayout layout="full-width">
       <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
@@ -205,7 +218,7 @@ export default function BudgetDashboardPage() {
             <Card>
               <Statistic
                 title="Total Income"
-                value={totalIncome}
+                value={findData("Amount of Money to work with")}
                 prefix={<DollarOutlined />}
                 precision={2}
               />
@@ -215,7 +228,7 @@ export default function BudgetDashboardPage() {
             <Card>
               <Statistic
                 title="Total Expenses"
-                value={totalExpenses}
+                value={findData("Amount of Money to work with") - findData("Remainder at End")}
                 prefix={<DollarOutlined />}
                 precision={2}
               />
@@ -225,7 +238,7 @@ export default function BudgetDashboardPage() {
             <Card>
               <Statistic
                 title="Current Balance"
-                value={balance}
+                value={findData("Remainder at End")}
                 prefix={<DollarOutlined />}
                 precision={2}
                 valueStyle={{ color: balance >= 0 ? '#3f8600' : '#cf1322' }}
@@ -235,56 +248,44 @@ export default function BudgetDashboardPage() {
         </Row>
 
         <Card style={{ marginTop: 24 }}>
-        <Upload.Dragger
-  beforeUpload={(file) => {
-    handleUpload(file)
-    return false // Prevent default upload behavior
-  }}
-  accept=".xlsx,.xls"
->
-  <p className="ant-upload-drag-icon">
-    <InboxOutlined />
-  </p>
-  <p className="ant-upload-text">Click or drag Excel file to upload</p>
-</Upload.Dragger>
+          <Upload.Dragger
+            beforeUpload={(file) => {
+              handleUpload(file)
+              return false
+            }}
+            accept=".xlsx,.xls"
+          >
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined />
+            </p>
+            <p className="ant-upload-text">Click or drag Excel file to upload</p>
+          </Upload.Dragger>
         </Card>
 
         <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
           <Col xs={24} md={12}>
-            <Card title="Membership Distribution">
-              {isLoadingGraphs ? (
+            {isLoadingGraphs ? (
+              <Card>
                 <div style={{ textAlign: 'center', padding: '20px' }}>
                   <Spin />
-                  <div>Generating graph...</div>
+                  <div>Processing membership data...</div>
                 </div>
-              ) : graphs.membership_pie ? (
-                <img 
-                  src={graphs.membership_pie} 
-                  alt="Membership Distribution"
-                  style={{ width: '100%', height: 'auto' }}
-                />
-              ) : (
-                <Empty description="No data available" />
-              )}
-            </Card>
+              </Card>
+            ) : (
+              <MembershipDistribution membershipData={parsedData.membership} />
+            )}
           </Col>
           <Col xs={24} md={12}>
-            <Card title="Dues Breakdown">
-              {isLoadingGraphs ? (
+            {isLoadingGraphs ? (
+              <Card>
                 <div style={{ textAlign: 'center', padding: '20px' }}>
                   <Spin />
-                  <div>Generating graph...</div>
+                  <div>Processing dues data...</div>
                 </div>
-              ) : graphs.dues_bar ? (
-                <img 
-                  src={graphs.dues_bar} 
-                  alt="Dues Breakdown"
-                  style={{ width: '100%', height: 'auto' }}
-                />
-              ) : (
-                <Empty description="No data available" />
-              )}
-            </Card>
+              </Card>
+            ) : (
+              <DuesBreakdown duesData={parsedData.dues} />
+            )}
           </Col>
         </Row>
 

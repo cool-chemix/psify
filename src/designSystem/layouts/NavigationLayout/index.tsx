@@ -177,7 +177,7 @@ export const NavigationLayout: React.FC<Props> = ({ children }) => {
       <CustomTopbar>
         <LogoContainer>
           <img src="/logo.png" alt="Logo" style={{objectFit: 'contain'}} width={45} height={45} />
-          <LogoText>PsiPay</LogoText>
+          <LogoText>PsiFy</LogoText>
         </LogoContainer>
       </CustomTopbar>
       <Mobilebar keySelected={keySelected} items={itemsMobile} />
