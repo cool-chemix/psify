@@ -51,9 +51,9 @@ export default function EventsPage() {
   // Create event mutation
   const { mutateAsync: createEvent } = Api.event.create.useMutation()
 
-  // Register for event mutation
-  const { mutateAsync: createRegistration } =
-    Api.eventRegistration.create.useMutation()
+  // Event registration mutations
+  const { mutateAsync: createRegistration } = Api.eventRegistration.create.useMutation()
+  const { mutateAsync: deleteRegistration } = Api.eventRegistration.delete.useMutation()
 
   const handleCreateEvent = async (values: any) => {
     try {
@@ -86,12 +86,25 @@ export default function EventsPage() {
           amountPaid: cost,
         },
       })
-      enqueueSnackbar('Successfully registered for event!', {
-        variant: 'success',
-      })
+      enqueueSnackbar('Successfully registered for event!', { variant: 'success' })
       refetch()
     } catch (error) {
       enqueueSnackbar('Failed to register for event', { variant: 'error' })
+    }
+  }
+
+  const handleUnregister = async (eventId: string) => {
+    try {
+      await deleteRegistration({
+        data: {
+          eventId,
+          userId: user?.id,
+        },
+      })
+      enqueueSnackbar('Successfully unregistered from event!', { variant: 'success' })
+      refetch()
+    } catch (error) {
+      enqueueSnackbar('Failed to unregister from event', { variant: 'error' })
     }
   }
 
@@ -132,14 +145,25 @@ export default function EventsPage() {
           (reg: any) => reg.userId === user?.id,
         )
         return (
-          !isRegistered && (
-            <Button
-              type="primary"
-              onClick={() => handleRegister(record.id, record.cost)}
-            >
-              Register
-            </Button>
-          )
+          <Button
+            type={isRegistered ? 'default' : 'primary'}
+            onClick={() => 
+              isRegistered 
+                ? handleUnregister(record.id)
+                : handleRegister(record.id, record.cost)
+            }
+            style={
+              isRegistered 
+                ? {
+                    backgroundColor: 'white',
+                    color: 'red',
+                    borderColor: 'red'
+                  }
+                : {}
+            }
+          >
+            {isRegistered ? 'Unregister' : 'Register'}
+          </Button>
         )
       },
     },
@@ -186,11 +210,7 @@ export default function EventsPage() {
     <PageLayout layout="full-width">
       <Row justify="center" style={{ padding: '24px' }}>
         <Col span={24}>
-          <Row
-            justify="space-between"
-            align="middle"
-            style={{ marginBottom: 24 }}
-          >
+          <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
             <Title level={2}>Events Management</Title>
             {checkRole('ORGANIZER') && (
               <Button
@@ -232,38 +252,20 @@ export default function EventsPage() {
         footer={null}
       >
         <Form form={form} onFinish={handleCreateEvent} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Event Name"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="name" label="Event Name" rules={[{ required: true }]}>
             <Input prefix={<CalendarOutlined />} />
           </Form.Item>
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="description" label="Description" rules={[{ required: true }]}>
             <Input.TextArea />
           </Form.Item>
           <Form.Item name="date" label="Date" rules={[{ required: true }]}>
             <Input type="date" />
           </Form.Item>
           <Form.Item name="budget" label="Budget" rules={[{ required: true }]}>
-            <InputNumber
-              prefix={<DollarOutlined />}
-              style={{ width: '100%' }}
-            />
+            <InputNumber prefix={<DollarOutlined />} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item
-            name="cost"
-            label="Registration Cost"
-            rules={[{ required: true }]}
-          >
-            <InputNumber
-              prefix={<DollarOutlined />}
-              style={{ width: '100%' }}
-            />
+          <Form.Item name="cost" label="Registration Cost" rules={[{ required: true }]}>
+            <InputNumber prefix={<DollarOutlined />} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" block>

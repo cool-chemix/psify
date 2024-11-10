@@ -5,7 +5,9 @@ import { Api } from '@/core/trpc'
 import { PageLayout } from '@/designSystem'
 import {
   CalendarOutlined,
+  DollarCircleTwoTone,
   DollarOutlined,
+  DollarTwoTone,
   ExclamationCircleOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
@@ -23,6 +25,7 @@ import {
 import dayjs from 'dayjs'
 import { useRouter } from 'next/navigation'
 import { useSnackbar } from 'notistack'
+
 const { Title, Text } = Typography
 
 export default function HomePage() {
@@ -129,22 +132,21 @@ export default function HomePage() {
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px' }}>
         <Title level={2}>Financial Summary</Title>
         <Text type="secondary">
-          View your financial overview, upcoming payments, and transaction
-          history
+          View your financial overview, upcoming payments, and transaction history
         </Text>
 
         <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-          <Col xs={24} sm={12} lg={8}>
+          <Col xs={24} sm={12}>
             <Card>
               <Statistic
                 title="Total Outstanding Dues"
                 value={totalDues}
-                prefix={<DollarOutlined />}
+                prefix={<DollarTwoTone />}
                 precision={2}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={8}>
+          <Col xs={24} sm={12}>
             <Card>
               <Statistic
                 title="Upcoming Payments"
@@ -153,38 +155,34 @@ export default function HomePage() {
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={8}>
-            <Card style={{ padding: 15 }}>
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <Text strong>Quick Actions</Text>
-                <Button
-                  type="primary"
-                  icon={<DollarOutlined />}
-                  onClick={() => router.push('/payments')}
-                  className="w-full"
-                >
-                  Make a Payment
-                </Button>
-                <Button
-                  icon={<ExclamationCircleOutlined />}
-                  onClick={() => router.push('/expenses')}
-                  className="w-full"
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  Submit Expense Request
-                </Button>
-                <Button
-                  icon={<UploadOutlined />}
-                  onClick={() => router.push('/spreadsheet-upload')}
-                  className="w-full"
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  Upload Spreadsheet
-                </Button>
-              </Space>
-            </Card>
-          </Col>
         </Row>
+
+        <Card style={{ marginTop: 16 }}>
+          <Space direction="horizontal" style={{ width: '100%' }}>
+            <Text strong style={{ marginRight: 16 }}>Quick Actions</Text>
+            <Space wrap>
+              <Button
+                type="primary"
+                icon={<DollarOutlined />}
+                onClick={() => router.push('/payments')}
+              >
+                Make a Payment
+              </Button>
+              <Button
+                icon={<ExclamationCircleOutlined />}
+                onClick={() => router.push('/expenses')}
+              >
+                Submit Expense Request
+              </Button>
+              <Button
+                icon={<UploadOutlined />}
+                onClick={() => router.push('/budget')}
+              >
+                Upload Spreadsheet
+              </Button>
+            </Space>
+          </Space>
+        </Card>
 
         <Card style={{ marginTop: 24 }}>
           <Title level={4}>Upcoming Payments</Title>

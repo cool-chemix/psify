@@ -1,37 +1,46 @@
 'use client'
 
-import {
-  Typography,
-  Card,
-  Row,
-  Col,
-  Table,
-  Button,
-  Statistic,
-  Modal,
-  Tag,
-} from 'antd'
-import {
-  DollarOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  FileTextOutlined,
-} from '@ant-design/icons'
-import { useState } from 'react'
-const { Title, Text } = Typography
 import { useUserContext } from '@/core/context'
-import { useRouter, useParams } from 'next/navigation'
-import { useUploadPublic } from '@/core/hooks/upload'
-import { useSnackbar } from 'notistack'
-import dayjs from 'dayjs'
 import { Api } from '@/core/trpc'
 import { PageLayout } from '@/designSystem'
+import {
+  CheckOutlined,
+  CloseOutlined,
+  DollarOutlined,
+  InboxOutlined
+} from '@ant-design/icons'
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Spin,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  Upload
+} from 'antd'
+import type { UploadFile } from 'antd/es/upload/interface'
+import axios from 'axios'
+import dayjs from 'dayjs'
+import { useRouter } from 'next/navigation'
+import { useSnackbar } from 'notistack'
+import { useState } from 'react'
+const { Title, Text } = Typography
 
 export default function BudgetDashboardPage() {
   const router = useRouter()
   const { user } = useUserContext()
   const { enqueueSnackbar } = useSnackbar()
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
+  const [isLoadingGraphs, setIsLoadingGraphs] = useState(false)
+  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [graphs, setGraphs] = useState<{
+    membership_pie?: string
+    dues_bar?: string
+  }>({})
   const isTreasurer = user?.globalRole === 'TREASURER'
 
   // Fetch expense requests
@@ -62,6 +71,36 @@ export default function BudgetDashboardPage() {
     ) || 0
 
   const balance = totalIncome - totalExpenses
+
+  const handleUpload = async (file: File) => {
+    setIsLoadingGraphs(true)
+    const formData = new FormData()
+    formData.append('file', file)
+  
+    try {
+      console.log('Uploading file:', file.name) // Debug log
+      const response = await axios.post('http://localhost:5000/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        // Add timeout and response type
+        timeout: 30000,
+        responseType: 'json'
+      })
+      
+      if (response.data.graphs) {
+        setGraphs(response.data.graphs)
+        enqueueSnackbar('File uploaded successfully', { variant: 'success' })
+      } else {
+        throw new Error('No graphs data received')
+      }
+    } catch (error) {
+      console.error('Upload error:', error) // Debug log
+      enqueueSnackbar(error.response?.data?.error || 'Failed to upload file', { variant: 'error' })
+    } finally {
+      setIsLoadingGraphs(false)
+    }
+  }
 
   // Approve/Reject expense request
   const { mutateAsync: updateExpenseRequest } =
@@ -196,6 +235,60 @@ export default function BudgetDashboardPage() {
         </Row>
 
         <Card style={{ marginTop: 24 }}>
+        <Upload.Dragger
+  beforeUpload={(file) => {
+    handleUpload(file)
+    return false // Prevent default upload behavior
+  }}
+  accept=".xlsx,.xls"
+>
+  <p className="ant-upload-drag-icon">
+    <InboxOutlined />
+  </p>
+  <p className="ant-upload-text">Click or drag Excel file to upload</p>
+</Upload.Dragger>
+        </Card>
+
+        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+          <Col xs={24} md={12}>
+            <Card title="Membership Distribution">
+              {isLoadingGraphs ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <Spin />
+                  <div>Generating graph...</div>
+                </div>
+              ) : graphs.membership_pie ? (
+                <img 
+                  src={graphs.membership_pie} 
+                  alt="Membership Distribution"
+                  style={{ width: '100%', height: 'auto' }}
+                />
+              ) : (
+                <Empty description="No data available" />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} md={12}>
+            <Card title="Dues Breakdown">
+              {isLoadingGraphs ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <Spin />
+                  <div>Generating graph...</div>
+                </div>
+              ) : graphs.dues_bar ? (
+                <img 
+                  src={graphs.dues_bar} 
+                  alt="Dues Breakdown"
+                  style={{ width: '100%', height: 'auto' }}
+                />
+              ) : (
+                <Empty description="No data available" />
+              )}
+            </Card>
+          </Col>
+        </Row>
+
+        <Card style={{ marginTop: 24 }}>
           <Title level={4}>Expense Requests</Title>
           <Table
             dataSource={expenseRequests}
@@ -204,17 +297,6 @@ export default function BudgetDashboardPage() {
             pagination={{ pageSize: 10 }}
           />
         </Card>
-
-        {isTreasurer && (
-          <Button
-            type="primary"
-            icon={<FileTextOutlined />}
-            style={{ marginTop: 24 }}
-            onClick={() => router.push('/expenses')}
-          >
-            Manage Expense Requests
-          </Button>
-        )}
       </div>
     </PageLayout>
   )

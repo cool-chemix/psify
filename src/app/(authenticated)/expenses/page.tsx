@@ -1,34 +1,35 @@
 'use client'
 
+import { useUserContext } from '@/core/context'
+import { useUploadPublic } from '@/core/hooks/upload'
+import { Api } from '@/core/trpc'
+import { PageLayout } from '@/designSystem'
+import {
+  CheckOutlined,
+  CloseOutlined,
+  DeleteOutlined,
+  DollarOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
 import {
   Button,
   Card,
   Form,
   Input,
   InputNumber,
+  Popconfirm,
   Select,
   Space,
   Table,
   Typography,
   Upload,
 } from 'antd'
-import {
-  PlusOutlined,
-  UploadOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  DollarOutlined,
-} from '@ant-design/icons'
-import { useState } from 'react'
-import type { Prisma } from '@prisma/client'
-const { Title, Text } = Typography
-import { useUserContext } from '@/core/context'
-import { useRouter, useParams } from 'next/navigation'
-import { useUploadPublic } from '@/core/hooks/upload'
-import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
-import { Api } from '@/core/trpc'
-import { PageLayout } from '@/designSystem'
+import { useParams, useRouter } from 'next/navigation'
+import { useSnackbar } from 'notistack'
+import { useState } from 'react'
+const { Title, Text } = Typography
 
 export default function ExpenseRequestsPage() {
   const router = useRouter()
@@ -51,6 +52,8 @@ export default function ExpenseRequestsPage() {
     Api.expenseRequest.create.useMutation()
   const { mutateAsync: updateExpenseRequest } =
     Api.expenseRequest.update.useMutation()
+  const { mutateAsync: deleteExpenseRequest } =
+    Api.expenseRequest.delete.useMutation()
 
   const handleSubmit = async (values: any) => {
     try {
@@ -100,6 +103,20 @@ export default function ExpenseRequestsPage() {
     }
   }
 
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteExpenseRequest({
+        where: { id },
+      })
+      enqueueSnackbar('Expense request removed successfully', {
+        variant: 'success',
+      })
+      refetch()
+    } catch (error) {
+      enqueueSnackbar('Error removing expense request', { variant: 'error' })
+    }
+  }
+
   const columns = [
     {
       title: 'Date',
@@ -127,6 +144,16 @@ export default function ExpenseRequestsPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      render: (status: string) => {
+        const statusColors = {
+          PENDING: '#faad14',
+          APPROVED: '#52c41a',
+          REJECTED: '#f5222d',
+          COMPLETED: '#1890ff',
+          'Under Review': '#faad14'
+        }
+        return <Text style={{ color: statusColors[status as keyof typeof statusColors] }}>{status}</Text>
+      }
     },
     {
       title: 'Receipt',
@@ -134,18 +161,18 @@ export default function ExpenseRequestsPage() {
       key: 'receiptUrl',
       render: (url: string) =>
         url && (
-          <a href={url} target="_blank" rel="noopener noreferrer">
+          <Button type="link" href={url} target="_blank" rel="noopener noreferrer">
             View Receipt
-          </a>
+          </Button>
         ),
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (record: any) => {
-        if (checkRole('treasurer') && record.status === 'PENDING') {
-          return (
-            <Space>
+      render: (record: any) => (
+        <Space>
+          {checkRole('treasurer') && record.status === 'PENDING' && (
+            <>
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -160,18 +187,31 @@ export default function ExpenseRequestsPage() {
               >
                 Reject
               </Button>
-            </Space>
-          )
-        }
-        return null
-      },
+            </>
+          )}
+          <Popconfirm
+            title="Are you sure you want to remove this expense request?"
+            onConfirm={() => handleDelete(record.id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button 
+              danger 
+              type="text"
+              icon={<DeleteOutlined />}
+            >
+              Remove
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
     },
   ]
 
   return (
     <PageLayout layout="full-width">
       <Space direction="vertical" style={{ width: '100%' }} size="large">
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', marginTop: 32, marginBottom: 24 }}>
           <Title level={2}>Expense Requests</Title>
           <Text>Submit and manage expense requests</Text>
         </div>
@@ -220,9 +260,9 @@ export default function ExpenseRequestsPage() {
               >
                 <Select>
                   <Select.Option value="TRAVEL">Travel</Select.Option>
-                  <Select.Option value="SUPPLIES">Supplies</Select.Option>
-                  <Select.Option value="EQUIPMENT">Equipment</Select.Option>
-                  <Select.Option value="OTHER">Other</Select.Option>
+                  <Select.Option value="EVENT">Event</Select.Option>
+                  <Select.Option value="MARKETING">Marketing</Select.Option>
+                  <Select.Option value="RENTAL">Rental</Select.Option>
                 </Select>
               </Form.Item>
 

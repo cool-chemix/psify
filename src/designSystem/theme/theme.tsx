@@ -57,7 +57,7 @@ export const Theme = {
     },
     Menu: {
       activeBarBorderWidth: 0,
-      itemHeight: 30,
+      itemHeight: 40,
       //topbar menu items
       horizontalItemSelectedColor: 'black',
       horizontalItemSelectedBg: 'transparent',

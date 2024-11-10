@@ -55,12 +55,16 @@ export const PageLayout: React.FC<Props> = ({
       style={{
         flex: 1,
         overflowY: isScrollable ? 'auto' : undefined,
+        padding: '0 24px', // Add horizontal padding to the container
       }}
     >
       <Col {...props} {...breakpoints}>
         <Flex
           vertical
-          className="h-full p-2"
+          className="h-full"  // Removed p-2 class
+          style={{
+            gap: '8px',  // Add small gap between child elements
+          }}
           justify={isCentered ? 'center' : undefined}
           align={isCentered ? 'center' : undefined}
         >
