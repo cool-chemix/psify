@@ -1,30 +1,29 @@
 'use client'
 
+import { useUserContext } from '@/core/context'
+import { Api } from '@/core/trpc'
+import { PageLayout } from '@/designSystem'
 import {
-  Card,
-  Row,
-  Col,
-  Typography,
+  CalendarOutlined,
+  DollarOutlined,
+  ExclamationCircleOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
+import {
   Button,
+  Card,
+  Col,
+  Row,
+  Space,
   Statistic,
   Table,
   Tag,
-  Space,
+  Typography,
 } from 'antd'
-import {
-  DollarOutlined,
-  CalendarOutlined,
-  ExclamationCircleOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons'
-const { Title, Text } = Typography
-import { useUserContext } from '@/core/context'
-import { useRouter, useParams } from 'next/navigation'
-import { useUploadPublic } from '@/core/hooks/upload'
-import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
-import { Api } from '@/core/trpc'
-import { PageLayout } from '@/designSystem'
+import { useRouter } from 'next/navigation'
+import { useSnackbar } from 'notistack'
+const { Title, Text } = Typography
 
 export default function HomePage() {
   const router = useRouter()
@@ -127,7 +126,7 @@ export default function HomePage() {
 
   return (
     <PageLayout layout="full-width">
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px' }}>
         <Title level={2}>Financial Summary</Title>
         <Text type="secondary">
           View your financial overview, upcoming payments, and transaction
@@ -155,23 +154,32 @@ export default function HomePage() {
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={8}>
-            <Card>
-              <Space direction="vertical">
+            <Card style={{ padding: 15 }}>
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <Text strong>Quick Actions</Text>
                 <Button
                   type="primary"
                   icon={<DollarOutlined />}
                   onClick={() => router.push('/payments')}
-                  block
+                  className="w-full"
                 >
                   Make a Payment
                 </Button>
                 <Button
                   icon={<ExclamationCircleOutlined />}
                   onClick={() => router.push('/expenses')}
-                  block
+                  className="w-full"
+                  style={{ whiteSpace: 'nowrap' }}
                 >
                   Submit Expense Request
+                </Button>
+                <Button
+                  icon={<UploadOutlined />}
+                  onClick={() => router.push('/spreadsheet-upload')}
+                  className="w-full"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  Upload Spreadsheet
                 </Button>
               </Space>
             </Card>

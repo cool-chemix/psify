@@ -1,45 +1,34 @@
 'use client'
 
+import { useUserContext } from '@/core/context'
+import { Api } from '@/core/trpc'
+import { PageLayout } from '@/designSystem'
 import {
-  Typography,
-  Card,
+  CalendarOutlined,
+  DollarOutlined,
+  PlusOutlined,
+} from '@ant-design/icons'
+import {
   Button,
-  Row,
+  Card,
   Col,
-  Progress,
-  Modal,
   Form,
   Input,
   InputNumber,
+  Modal,
+  Progress,
+  Row,
+  Typography,
 } from 'antd'
-import {
-  PlusOutlined,
-  DollarOutlined,
-  TeamOutlined,
-  CalendarOutlined,
-} from '@ant-design/icons'
+import dayjs from 'dayjs'
+import { useRouter } from 'next/navigation'
+import { useSnackbar } from 'notistack'
 import { useState } from 'react'
 const { Title, Text } = Typography
-import { useUserContext } from '@/core/context'
-import { useRouter, useParams } from 'next/navigation'
-import { useUploadPublic } from '@/core/hooks/upload'
-import { useSnackbar } from 'notistack'
-import dayjs from 'dayjs'
-import { Api } from '@/core/trpc'
-import { PageLayout } from '@/designSystem'
 
 export default function FundraisingPage() {
   const router = useRouter()
-  const {
-    user,
-  }: {
-    user: {
-      id: string
-      name: string
-      email: string
-      checkRole: (roleName: string) => boolean
-    }
-  } = useUserContext()
+  const { user, checkRole } = useUserContext()
   const { enqueueSnackbar } = useSnackbar()
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [contributionModal, setContributionModal] = useState<{
@@ -107,7 +96,7 @@ export default function FundraisingPage() {
     }
   }
 
-  const isTreasurer = user?.checkRole('TREASURER')
+  const isTreasurer = checkRole('TREASURER')
 
   return (
     <PageLayout layout="full-width">
@@ -140,54 +129,57 @@ export default function FundraisingPage() {
 
         <Row gutter={[16, 16]}>
           {campaigns?.map(campaign => (
-            <Col xs={24} sm={12} lg={8} key={campaign.id}>
-              <Card
-                title={campaign.name}
-                extra={
-                  <Button
-                    type="primary"
-                    onClick={() =>
-                      setContributionModal({
-                        visible: true,
-                        campaignId: campaign.id,
-                      })
-                    }
-                  >
-                    Contribute
-                  </Button>
-                }
-              >
-                <Text>{campaign.description}</Text>
-                <div style={{ marginTop: 16 }}>
-                  <Progress
-                    percent={Math.min(
-                      (parseFloat(campaign.currentAmount) /
-                        parseFloat(campaign.goal || '1')) *
+            <Col xs={24} sm={12} lg={8} key={campaign.id} className="h-full">
+              <Card title={campaign.name} style={{ height: '100%' }}>
+                <div className="flex flex-col justify-between h-full">
+                  <Text>{campaign.description}</Text>
+                  <div style={{ marginTop: 16 }}>
+                    <Progress
+                      percent={Math.min(
+                        Number(
+                          (
+                            (parseFloat(campaign.currentAmount) /
+                              parseFloat(campaign.goal || '1')) *
+                            100
+                          ).toFixed(2),
+                        ),
                         100,
-                      100,
-                    )}
-                    status="active"
-                  />
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginTop: 8,
-                    }}
-                  >
-                    <Text>
-                      <DollarOutlined /> ${campaign.currentAmount} raised
-                    </Text>
-                    <Text>
-                      <DollarOutlined /> ${campaign.goal} goal
-                    </Text>
-                  </div>
-                  <div style={{ marginTop: 8 }}>
-                    <Text>
-                      <CalendarOutlined />{' '}
-                      {dayjs(campaign.startDate).format('MMM D, YYYY')} -{' '}
-                      {dayjs(campaign.endDate).format('MMM D, YYYY')}
-                    </Text>
+                      )}
+                      status="active"
+                    />
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginTop: 8,
+                      }}
+                    >
+                      <Text>
+                        <DollarOutlined /> ${campaign.currentAmount} raised
+                      </Text>
+                      <Text>
+                        <DollarOutlined /> ${campaign.goal} goal
+                      </Text>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <Text>
+                        <CalendarOutlined />{' '}
+                        {dayjs(campaign.startDate).format('MMM D, YYYY')} -{' '}
+                        {dayjs(campaign.endDate).format('MMM D, YYYY')}
+                      </Text>
+                    </div>
+                    <Button
+                      type="primary"
+                      onClick={() =>
+                        setContributionModal({
+                          visible: true,
+                          campaignId: campaign.id,
+                        })
+                      }
+                      style={{ marginTop: 16 }}
+                    >
+                      Contribute
+                    </Button>
                   </div>
                 </div>
               </Card>
